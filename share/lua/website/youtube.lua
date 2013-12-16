@@ -30,7 +30,7 @@ function ident(self)
     local C      = require 'quvi/const'
     local r      = {}
     r.domain     = "youtube%.com"
-    r.formats    = "default|best"
+    r.formats    = "default|best|dash"
     r.categories  = C.proto_http
     self.page_url = YouTube.normalize(self.page_url)
     local U       = require 'quvi/util'
@@ -140,7 +140,13 @@ function YouTube.iter_formats(config, U)
     for f,w,h in fmt_map:gmatch('(%d+)/(%d+)x(%d+)') do
 --        print(f,w,h)
         table.insert(r, {fmt_id=tonumber(f),    url=urls[f],
-                          width=tonumber(w), height=tonumber(h)})
+                          width=tonumber(w), height=tonumber(h), dash = false})
+    end
+
+    local dashmpd = U.unescape(config['dashmpd'])
+    if dashmpd then
+--        print(dashmpd)
+        table.insert(r, {fmt_id=138, url=dashmpd, width=0, height=0, dash = true})
     end
 
     return r
@@ -188,7 +194,7 @@ function YouTube.choose_best(formats) -- Highest quality available
     local r = {width=0, height=0, url=nil}
     local U = require 'quvi/util'
     for _,v in pairs(formats) do
-        if U.is_higher_quality(v,r) then
+        if U.is_higher_quality(v,r) or v.dash then
             r = v
         end
     end
@@ -228,7 +234,11 @@ function YouTube.convert_deprecated_id(r_fmt)
 end
 
 function YouTube.to_s(t)
-    return string.format("fmt%02d_%sp", t.fmt_id, t.height)
+    if t.dash then
+        return "dash"
+    else
+        return string.format("fmt%02d_%sp", t.fmt_id, t.height)
+    end
 end
 
 --[[
